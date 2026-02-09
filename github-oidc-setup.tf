@@ -1,8 +1,6 @@
 # This file sets up OIDC for GitHub Actions
 # Run this ONCE manually first: terraform apply -target=aws_iam_openid_connect_provider.github
 
-data "aws_caller_identity" "current" {}
-
 resource "aws_iam_openid_connect_provider" "github" {
   url = "https://token.actions.githubusercontent.com"
 
