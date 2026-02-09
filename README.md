@@ -1,42 +1,317 @@
-# WAF Monitoring Setup
+# AWS WAF Monitoring Infrastructure
 
-AWS WAF monitoring infrastructure using Terraform with CloudWatch alarms and SNS notifications.
+[![Terraform](https://img.shields.io/badge/Terraform-1.6+-623CE4?logo=terraform)](https://www.terraform.io/)
+[![AWS](https://img.shields.io/badge/AWS-Cloud-FF9900?logo=amazon-aws)](https://aws.amazon.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## Features
-- CloudTrail logging for WAF events
-- CloudWatch alarms for blocked requests
-- SNS email notifications
-- S3 bucket for CloudTrail logs
+A production-ready AWS WAF monitoring solution with automated deployment via GitHub Actions using OIDC authentication. This infrastructure provides real-time alerts for WAF modifications and comprehensive CloudTrail logging.
 
-## Prerequisites
-- AWS CLI configured
-- Terraform installed
-- AWS account with appropriate permissions
+## 🚀 Features
 
-## Usage
+- **🔒 Secure OIDC Authentication** - GitHub Actions deploys without storing AWS credentials
+- **📊 Real-time Monitoring** - CloudWatch alarms for WAF modifications
+- **📧 Email Notifications** - SNS alerts sent to configured email
+- **📝 Comprehensive Logging** - CloudTrail logs all WAF events to S3
+- **🔄 Automated Deployment** - GitOps workflow with Terraform
+- **🔐 State Management** - Remote state in S3 with DynamoDB locking
+- **📈 Scalable Architecture** - Production-ready infrastructure
 
-1. Clone the repository
-2. Update `variables.tf` with your values
-3. Initialize Terraform:
-   ```bash
-   terraform init
-   ```
-4. Plan the deployment:
-   ```bash
-   terraform plan
-   ```
-5. Apply the configuration:
-   ```bash
-   terraform apply
-   ```
+## 📋 Architecture
 
-## Variables
-- `aws_region`: AWS region (default: us-east-1)
-- `alert_email`: Email for SNS notifications
-- `web_acl_name`: Name of the Web ACL to monitor
-- `trail_name`: CloudTrail name
-
-## Cleanup
-```bash
-terraform destroy
 ```
+┌─────────────────┐
+│   GitHub Push   │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────┐
+│ GitHub Actions  │◄──── OIDC Auth (No Credentials!)
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────────────────────┐
+│              AWS Infrastructure              │
+│                                              │
+│  ┌──────────┐    ┌──────────────┐          │
+│  │   WAF    │───▶│  CloudTrail  │          │
+│  └──────────┘    └──────┬───────┘          │
+│                         │                   │
+│                         ▼                   │
+│              ┌──────────────────┐           │
+│              │  CloudWatch Logs │           │
+│              └────────┬─────────┘           │
+│                       │                     │
+│                       ▼                     │
+│              ┌──────────────────┐           │
+│              │  Metric Filter   │           │
+│              └────────┬─────────┘           │
+│                       │                     │
+│                       ▼                     │
+│              ┌──────────────────┐           │
+│              │ CloudWatch Alarm │           │
+│              └────────┬─────────┘           │
+│                       │                     │
+│                       ▼                     │
+│              ┌──────────────────┐           │
+│              │    SNS Topic     │───▶ 📧   │
+│              └──────────────────┘           │
+└─────────────────────────────────────────────┘
+```
+
+## 🛠️ Prerequisites
+
+- **AWS Account** with appropriate permissions
+- **AWS CLI** configured with credentials
+- **Terraform** >= 1.6.0
+- **Git** installed
+- **GitHub Account** with repository access
+
+## 📦 Infrastructure Components
+
+| Component | Purpose | File |
+|-----------|---------|------|
+| **WAF Web ACL** | Firewall protection | `main.tf` |
+| **CloudTrail** | Event logging | `main.tf` |
+| **S3 Bucket** | Log storage | `main.tf` |
+| **CloudWatch Log Group** | Centralized logging | `monitoring.tf` |
+| **Metric Filter** | Pattern matching for events | `monitoring.tf` |
+| **CloudWatch Alarm** | Alert triggering | `monitoring.tf` |
+| **SNS Topic** | Notification delivery | `monitoring.tf` |
+| **OIDC Provider** | GitHub authentication | `github-oidc-setup.tf` |
+| **S3 Backend** | Terraform state storage | `backend-setup.tf` |
+
+## 🚀 Quick Start
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/hassan-farooq-6/waf-monitoring.git
+cd waf-monitoring
+```
+
+### 2. Configure Variables
+
+Edit `variables.tf` with your values:
+
+```hcl
+variable "aws_region" {
+  default = "us-east-1"  # Your AWS region
+}
+
+variable "alert_email" {
+  default = "your-email@example.com"  # Your email
+}
+
+variable "web_acl_name" {
+  default = "MyWebACL-TF"  # Your WAF name
+}
+```
+
+### 3. Initial Setup (One-time)
+
+```bash
+# Initialize Terraform
+terraform init
+
+# Create OIDC provider and backend
+terraform apply -target=aws_iam_openid_connect_provider.github \
+                -target=aws_iam_role.github_actions \
+                -target=aws_iam_role_policy_attachment.github_actions_admin \
+                -target=aws_s3_bucket.terraform_state \
+                -target=aws_s3_bucket_versioning.terraform_state \
+                -target=aws_dynamodb_table.terraform_locks
+
+# Get the Role ARN
+terraform output github_role_arn
+```
+
+### 4. Configure GitHub Secrets
+
+1. Go to: `https://github.com/YOUR_USERNAME/waf-monitoring/settings/secrets/actions`
+2. Click **"New repository secret"**
+3. Name: `AWS_ROLE_ARN`
+4. Value: Paste the ARN from step 3
+5. Click **"Add secret"**
+
+### 5. Deploy
+
+```bash
+# Migrate state to S3
+terraform init -migrate-state
+
+# Deploy infrastructure
+terraform apply
+
+# Push to GitHub (triggers automated deployment)
+git add .
+git commit -m "Initial deployment"
+git push origin main
+```
+
+## 🔄 GitHub Actions Workflow
+
+The pipeline automatically runs on every push to `main`:
+
+```yaml
+Trigger: Push to main branch
+  ↓
+Checkout Code
+  ↓
+Authenticate via OIDC (No credentials!)
+  ↓
+Terraform Init
+  ↓
+Terraform Validate
+  ↓
+Terraform Plan
+  ↓
+Terraform Apply (Auto-approved)
+  ↓
+Infrastructure Updated ✅
+```
+
+## 📊 Monitoring & Alerts
+
+### What Gets Monitored
+
+- **WAF Web ACL Creation**
+- **WAF Web ACL Updates**
+- **WAF Web ACL Deletion**
+
+### Alert Conditions
+
+- **Threshold:** 1 or more modifications
+- **Period:** 5 minutes
+- **Action:** Email notification via SNS
+
+### Email Notification
+
+After deployment, confirm your SNS subscription:
+1. Check your email inbox
+2. Click the confirmation link from AWS
+3. You'll now receive alerts for WAF changes
+
+## 🔐 Security Best Practices
+
+✅ **OIDC Authentication** - No long-lived credentials  
+✅ **Encrypted State** - S3 encryption at rest  
+✅ **State Locking** - DynamoDB prevents concurrent modifications  
+✅ **Versioned State** - S3 versioning enabled for rollback  
+✅ **IAM Least Privilege** - Scoped to specific repository  
+✅ **CloudTrail Logging** - Complete audit trail  
+
+## 📁 Project Structure
+
+```
+waf-monitoring/
+├── .github/
+│   └── workflows/
+│       └── terraform.yml          # GitHub Actions pipeline
+├── main.tf                        # Core infrastructure (WAF, CloudTrail, S3)
+├── monitoring.tf                  # Monitoring resources (CloudWatch, SNS)
+├── provider.tf                    # AWS provider & backend config
+├── variables.tf                   # Input variables
+├── github-oidc-setup.tf          # OIDC provider for GitHub
+├── backend-setup.tf              # S3 backend resources
+├── .gitignore                    # Git ignore rules
+└── README.md                     # This file
+```
+
+## 🔧 Configuration
+
+### Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `aws_region` | AWS region for deployment | `us-east-1` |
+| `alert_email` | Email for SNS notifications | Required |
+| `web_acl_name` | Name of the Web ACL | `MyWebACL-TF` |
+| `trail_name` | CloudTrail name | `web-acl-monitoring-trail-TF` |
+
+### Outputs
+
+| Output | Description |
+|--------|-------------|
+| `github_role_arn` | IAM role ARN for GitHub Actions |
+| `s3_bucket_name` | S3 bucket for Terraform state |
+
+## 🧪 Testing
+
+Test the pipeline by making a change:
+
+```bash
+# Make a change
+echo "# Test change" >> README.md
+
+# Commit and push
+git add .
+git commit -m "Test automated deployment"
+git push
+
+# Check pipeline status
+# Visit: https://github.com/YOUR_USERNAME/waf-monitoring/actions
+```
+
+## 🐛 Troubleshooting
+
+### Pipeline Fails with "AccessDenied"
+
+**Solution:** Verify the `AWS_ROLE_ARN` secret is correct in GitHub
+
+### "Resource Already Exists" Error
+
+**Solution:** Import existing resources:
+```bash
+terraform import aws_wafv2_web_acl.main <web-acl-id>/MyWebACL-TF/REGIONAL
+```
+
+### SNS Email Not Received
+
+**Solution:** Check spam folder and confirm subscription via email link
+
+### State Lock Error
+
+**Solution:** Release the lock:
+```bash
+terraform force-unlock <LOCK_ID>
+```
+
+## 🧹 Cleanup
+
+To destroy all resources:
+
+```bash
+# Destroy infrastructure
+terraform destroy
+
+# Delete S3 state bucket manually (if needed)
+aws s3 rb s3://terraform-state-waf-XXXXX --force
+```
+
+## 📚 Additional Resources
+
+- [AWS WAF Documentation](https://docs.aws.amazon.com/waf/)
+- [Terraform AWS Provider](https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+- [GitHub Actions OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
+- [CloudWatch Alarms](https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/AlarmThatSendsEmail.html)
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👤 Author
+
+**Hassan Farooq**
+- GitHub: [@hassan-farooq-6](https://github.com/hassan-farooq-6)
+
+## ⭐ Show Your Support
+
+Give a ⭐️ if this project helped you!
+
+---
+
+**Built with ❤️ using Terraform and AWS**
