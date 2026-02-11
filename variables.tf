@@ -7,7 +7,7 @@ variable "aws_region" {
 variable "alert_email" {
   description = "The email address that will receive SNS notifications"
   type        = string
-  default     = "hassanfarooq2190@gmail.com" 
+  default     = "hassan.bin.farooq@genclouds.com" 
 }
 
 variable "web_acl_name" {
