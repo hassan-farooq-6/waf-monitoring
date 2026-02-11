@@ -26,7 +26,7 @@ Implement a production-ready monitoring solution that automatically detects and 
 1. **AWS CloudTrail**
    - Captures all API calls made to AWS WAF service
    - Provides complete audit trail with user identity information
-   - Stores logs in S3 for long-term retention
+   - Stores logs in   S3 for long-term retention
 
 2. **Amazon EventBridge**
    - Real-time event detection engine
