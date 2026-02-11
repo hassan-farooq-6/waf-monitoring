@@ -73,9 +73,6 @@ resource "aws_cloudwatch_event_rule" "waf_changes" {
         "PutLoggingConfiguration",
         "DeleteLoggingConfiguration"
       ]
-      requestParameters = {
-        name = [var.web_acl_name]
-      }
     }
   })
 }
