@@ -1,7 +1,7 @@
 # S3 Backend for Terraform State
 resource "aws_s3_bucket" "terraform_state" {
   bucket_prefix = "terraform-state-waf-"
-  force_destroy = false
+  force_destroy = true  # Allow easy cleanup
 }
 
 resource "aws_s3_bucket_versioning" "terraform_state" {

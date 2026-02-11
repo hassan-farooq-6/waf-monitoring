@@ -20,8 +20,8 @@ data "aws_caller_identity" "current" {}
 
 # --- 3. Create S3 Bucket for CloudTrail Logs ---
 resource "aws_s3_bucket" "cloudtrail_logs" {
-  bucket_prefix = "cloudtrail-waf-logs-" # Adds a random suffix to make it unique
-  force_destroy = true # Allows deleting bucket even if it has logs (for testing)
+  bucket_prefix = "cloudtrail-waf-logs-"
+  force_destroy = true  # Allow easy cleanup
 }
 
 # --- 4. S3 Bucket Policy (CRITICAL) ---

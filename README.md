@@ -9,11 +9,13 @@ A production-ready AWS WAF monitoring solution with automated deployment via Git
 ## 🚀 Features
 
 - **🔒 Secure OIDC Authentication** - GitHub Actions deploys without storing AWS credentials
-- **📊 Real-time Monitoring** - CloudWatch alarms for WAF modifications
-- **📧 Email Notifications** - SNS alerts sent to configured email
+- **📊 Real-time Monitoring** - Instant alerts on WAF modifications (< 5 seconds)
+- **📧 Detailed Email Notifications** - Know WHO changed WHAT, WHEN, and from WHERE
+- **👤 User Tracking** - Identifies IAM users, roles, or root account
 - **📝 Comprehensive Logging** - CloudTrail logs all WAF events to S3
 - **🔄 Automated Deployment** - GitOps workflow with Terraform
 - **🔐 State Management** - Remote state in S3 with DynamoDB locking
+- **⚡ One-Click Deploy/Destroy** - Simple scripts for easy management
 - **📈 Scalable Architecture** - Production-ready infrastructure
 
 ## 📋 Architecture
@@ -82,71 +84,35 @@ A production-ready AWS WAF monitoring solution with automated deployment via Git
 
 ## 🚀 Quick Start
 
-### 1. Clone the Repository
+### Method 1: One-Click Scripts (Easiest)
 
 ```bash
-git clone https://github.com/hassan-farooq-6/waf-monitoring.git
-cd waf-monitoring
+# Set your AWS profile
+export AWS_PROFILE=hassan-account
+
+# Deploy everything
+./deploy.sh
+
+# When done, cleanup everything
+./cleanup.sh
 ```
 
-### 2. Configure Variables
+### Method 2: Manual Terraform
 
-Edit `variables.tf` with your values:
-
-```hcl
-variable "aws_region" {
-  default = "us-east-1"  # Your AWS region
-}
-
-variable "alert_email" {
-  default = "your-email@example.com"  # Your email
-}
-
-variable "web_acl_name" {
-  default = "MyWebACL-TF"  # Your WAF name
-}
-```
-
-### 3. Initial Setup (One-time)
-
+#### Deploy:
 ```bash
-# Initialize Terraform
+export AWS_PROFILE=hassan-account
 terraform init
-
-# Create OIDC provider and backend
-terraform apply -target=aws_iam_openid_connect_provider.github \
-                -target=aws_iam_role.github_actions \
-                -target=aws_iam_role_policy_attachment.github_actions_admin \
-                -target=aws_s3_bucket.terraform_state \
-                -target=aws_s3_bucket_versioning.terraform_state \
-                -target=aws_dynamodb_table.terraform_locks
-
-# Get the Role ARN
-terraform output github_role_arn
-```
-
-### 4. Configure GitHub Secrets
-
-1. Go to: `https://github.com/YOUR_USERNAME/waf-monitoring/settings/secrets/actions`
-2. Click **"New repository secret"**
-3. Name: `AWS_ROLE_ARN`
-4. Value: Paste the ARN from step 3
-5. Click **"Add secret"**
-
-### 5. Deploy
-
-```bash
-# Migrate state to S3
-terraform init -migrate-state
-
-# Deploy infrastructure
 terraform apply
-
-# Push to GitHub (triggers automated deployment)
-git add .
-git commit -m "Initial deployment"
-git push origin main
 ```
+
+#### Destroy:
+```bash
+export AWS_PROFILE=hassan-account
+terraform destroy
+```
+
+That's it! ✅
 
 ## 🔄 GitHub Actions Workflow
 
@@ -177,19 +143,39 @@ Infrastructure Updated ✅
 - **WAF Web ACL Creation**
 - **WAF Web ACL Updates**
 - **WAF Web ACL Deletion**
+- **WAF Logging Configuration Changes**
 
-### Alert Conditions
+### Alert Details (Real-time)
 
-- **Threshold:** 1 or more modifications
-- **Period:** 5 minutes
-- **Action:** Email notification via SNS
+You'll receive an email within **5 seconds** containing:
 
-### Email Notification
+```
+🚨 WAF MODIFICATION ALERT 🚨
 
-After deployment, confirm your SNS subscription:
+ACTION: UpdateWebACL
+TIME: 2026-02-11T12:30:45Z
+WHO: IAM User: john.doe
+SOURCE IP: 203.0.113.42
+USER AGENT: aws-cli/2.0
+
+DETAILS:
+{
+  "name": "MyWebACL-TF",
+  "scope": "REGIONAL",
+  "rules": [...]
+}
+
+AWS ACCOUNT: 904619734491
+REGION: us-east-1
+EVENT ID: abc-123-xyz
+```
+
+### Email Notification Setup
+
+After deployment:
 1. Check your email inbox
 2. Click the confirmation link from AWS
-3. You'll now receive alerts for WAF changes
+3. You'll now receive detailed alerts for all WAF changes
 
 ## 🔐 Security Best Practices
 
@@ -278,15 +264,19 @@ terraform force-unlock <LOCK_ID>
 
 ## 🧹 Cleanup
 
-To destroy all resources:
-
+### One-Click Cleanup:
 ```bash
-# Destroy infrastructure
-terraform destroy
-
-# Delete S3 state bucket manually (if needed)
-aws s3 rb s3://terraform-state-waf-XXXXX --force
+export AWS_PROFILE=hassan-account
+./cleanup.sh
 ```
+
+### Manual Cleanup:
+```bash
+export AWS_PROFILE=hassan-account
+terraform destroy
+```
+
+That's it! All resources deleted, no charges. ✅
 
 ## 📚 Additional Resources
 
